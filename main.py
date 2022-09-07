@@ -2,55 +2,231 @@ import pandas as pd
 import procesa_datos as d
 import torch
 import matplotlib.pyplot as plt
-from Modelos import ModeloSimple
+from Modelos import ModeloSimple, ModeloConv, Lineal
+import torch.optim.lr_scheduler as o
 import ops
 from tqdm import tqdm
 
-"""
-Visualizacion de datos: 
-    - Cada una de los caracteres es un input (59 inputs??)
-    - Cada input tiene 4 posiciones: A C T G
-    - Hay 3 clases de salida: EI IE N
-    - Habria que consultar el script de este señor de las casas a ver que hacia
-"""
 
-# Leemos los datos
-csv = pd.read_csv("splice.data")
+def vis_datos(data, labels):
+    # Conteo de cada variable en la cadena
+    # Ver la clase a la que pertenece
 
-# Procesamos los datos
-labels, data = d.procesa_datos(csv)
-# Esto lo transforma en un formato guay para pytorch
-train, val, test = d.to_pytorch(labels, data)
+    ei = [[], [], [], []]
+    ei_lab = [[],[],[],[]]
+    for l in range(len(labels)):
+        if labels[l] == [1, 0, 0]:
+            a = 0
+            c = 0
+            t = 0
+            g = 0
 
-red = ModeloSimple()  # Declaramos nuestro modelo 
-optim = torch.optim.SGD(red.parameters(), lr=0.05)  # Utilizamos SDG como optimizador
+            for d in data[l][0]:
+                if d == 0:
+                    a += 1
+                elif d == 1:
+                    c += 1
+                elif d == 2:
+                    t += 1
+                elif d == 3:
+                    g += 1
+            ei[0].append(a)
+            ei_lab[0].append(1)
+            ei[1].append(c)
+            ei_lab[1].append(2)
+            ei[2].append(t)
+            ei_lab[2].append(3)
+            ei[3].append(g)
+            ei_lab[3].append(4)
 
-# Metricas de perdida y precision
-tot_acc = []
-tot_loss = []
+    ie = [[], [], [], []]
+    ie_lab = [[], [], [], []]
+    for l in range(len(labels)):
+        if labels[l] == [0, 1, 0]:
+            a = 0
+            c = 0
+            t = 0
+            g = 0
 
-# Entrenamiento y validacion en 100 epochs
-for _ in tqdm(range(100)):
+            for d in data[l][0]:
+                if d == 0:
+                    a += 1
+                elif d == 1:
+                    c += 1
+                elif d == 2:
+                    t += 1
+                elif d == 3:
+                    g += 1
+            ie[0].append(a)
+            ie_lab[0].append(1)
+            ie[1].append(c)
+            ie_lab[1].append(2)
+            ie[2].append(t)
+            ie_lab[2].append(3)
+            ie[3].append(g)
+            ie_lab[3].append(4)
 
-    ops.entrenamiento(train, red, optim)
-    acc, loss, _ = ops.val(val, red, optim)
-    tot_acc.append(acc)
-    tot_loss.append(loss.item())
+    n = [[], [], [], []]
+    n_lab = [[], [], [], []]
+    for l in range(len(labels)):
+        if labels[l] == [0, 1, 0]:
+            a = 0
+            c = 0
+            t = 0
+            g = 0
 
-# Representacion de las precisiones over epochs
-plt.plot(tot_acc)
-plt.ylabel("Precision")
-plt.xlabel("Iteraciones")
-plt.title("Modelo Lineal FC")
-plt.show()
+            for d in data[l][0]:
+                if d == 0:
+                    a += 1
+                elif d == 1:
+                    c += 1
+                elif d == 2:
+                    t += 1
+                elif d == 3:
+                    g += 1
+            n[0].append(a)
+            n_lab[0].append(1)
+            n[1].append(c)
+            n_lab[1].append(2)
+            n[2].append(t)
+            n_lab[2].append(3)
+            n[3].append(g)
+            n_lab[3].append(4)
 
-# Test de la red
-acc, _, acc_clases = ops.val(test, red, optim, test=True)
 
-# Representacion de las precisiones finales de cada clase y la global
-acc_clases.append(acc)
-plt.bar(["EI", "IE", "N", "Global"],acc_clases)
-plt.ylabel("Precision")
-plt.xlabel("Clase")
-plt.title("Precision final del modelo")
-plt.show()
+    x = "Nucleótidos"
+    y = "Apariciones por cadena"
+
+    fig, axs = plt.subplots(3,1)
+    axs[0].scatter(ei_lab,ei)
+    axs[0].set_title("Apariciones nucleótidos en Exón-Intrón")
+    axs[1].scatter(ie_lab,ie)
+    axs[1].set_title("Apariciones nucleótidos en Intrón-Exón")
+    axs[2].scatter(n_lab,n)
+    axs[2].set_title("Apariciones nucleótidos en Ninguno")
+
+    for ax in axs.flat:
+        ax.set(xlabel=x, ylabel=y)
+        ax.label_outer()
+
+    plt.show()
+
+def carga_datos(bs=32):
+    # Leemos los datos
+    csv = pd.read_csv("splice.data")
+    # Procesamos los datos
+    labels, data = d.procesa_datos(csv)
+
+    vis_datos(data, labels)
+    # Esto lo transforma en un formato guay para pytorch
+    train, val, test = d.to_pytorch(labels, data, bs=bs)
+
+    return train, val, test
+
+
+def modelo_lineal(train, val, test):
+    red = Lineal()
+    optim = torch.optim.SGD(red.parameters(), lr=0.005)
+    loss_fn = torch.nn.MSELoss()
+
+    scheduler = o.StepLR(optim, step_size=10, gamma=0.5)
+
+    tot_acc = []
+    tot_loss = []
+    t = tqdm(range(100))
+
+    for i in t:
+        ops.entrenamiento(train, red, optim, scheduler, loss_fn=loss_fn)
+        acc, loss, _ = ops.val(val, red, optim, loss_fn=loss_fn)
+        tot_acc.append(acc)
+        tot_loss.append(loss.item())
+        t.set_postfix({"MSELoss": loss.item(), "Acc": acc})
+
+    dibuja_plot(tot_acc, "Lineal")
+
+    acc, _, class_acc = ops.val(test, red, optim, loss_fn=loss_fn, test=True)
+    class_acc.append(acc)
+    dibuja_barra(class_acc, "Lineal")
+
+
+def modelo_simple(train, val, test):
+    red = ModeloSimple()
+    optim = torch.optim.Adam(red.parameters(), lr=0.005)
+    loss_fn = torch.nn.CrossEntropyLoss()
+
+    scheduler = o.StepLR(optim, step_size=10, gamma=0.5)
+
+    tot_acc = []
+    tot_loss = []
+    t = tqdm(range(100))
+
+    for i in t:
+        ops.entrenamiento(train, red, optim, scheduler, loss_fn=loss_fn)
+        acc, loss, _ = ops.val(val, red, optim, loss_fn=loss_fn)
+        tot_acc.append(acc)
+        tot_loss.append(loss.item())
+        t.set_postfix({"CELoss": loss.item(), "Acc": acc})
+
+    dibuja_plot(tot_acc, "Simple FC")
+
+    acc, _, class_acc = ops.val(test, red, optim, loss_fn=loss_fn, test=True)
+    class_acc.append(acc)
+    dibuja_barra(class_acc, "Simple FC")
+
+
+def modelo_conv(train, val, test):
+    red = ModeloConv()
+    optim = torch.optim.Adam(red.parameters(), lr=0.005)
+    loss_fn = torch.nn.CrossEntropyLoss()
+
+    scheduler = o.StepLR(optim, step_size=40, gamma=0.4)
+
+    tot_acc = []
+    tot_loss = []
+    class_acc = []
+
+    t = tqdm(range(100))
+
+    for i in t:
+        ops.entrenamiento(train, red, optim, scheduler, loss_fn=loss_fn)
+        acc, loss, _ = ops.val(val, red, optim, loss_fn=loss_fn)
+        tot_acc.append(acc)
+        tot_loss.append(loss.item())
+        t.set_postfix({"CELoss": loss.item(), "Acc": acc})
+
+    dibuja_plot(tot_acc, "Convolutivo")
+
+    acc, _, class_acc = ops.val(test, red, optim, loss_fn=loss_fn, test=True)
+    class_acc.append(acc)
+    dibuja_barra(class_acc, "Convolutivo")
+
+
+def dibuja_plot(accs, nombre):
+    plt.plot(accs)
+    plt.ylabel("Precision")
+    plt.xlabel("Iteraciones")
+    plt.title("Modelo "+nombre)
+    plt.show()
+
+
+def dibuja_barra(accs, nombre):
+    plt.bar(["EI", "IE", "N", "Global"], accs)
+    plt.ylabel("Precision")
+    plt.xlabel("Clase")
+    plt.title("Modelo "+nombre)
+    plt.show()
+
+
+if __name__ == "__main__":
+
+    print("Modelo Lineal")
+    train, val, test = carga_datos(bs=128)
+    # modelo_lineal(train, val, test)
+
+    # print("Modelo Simple FC")
+    # train, val, test = carga_datos(bs=128)
+    # modelo_simple(train, val, test)
+
+    # print("Modelo Convolutivo")
+    # train, val, test = carga_datos(bs=128)
+    # modelo_conv(train, val, test)

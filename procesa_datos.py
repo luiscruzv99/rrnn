@@ -35,15 +35,16 @@ def procesa_datos(csv):
             if(e == "A"):
                 dn.append(0)
             elif(e == "C"):
-                dn.append(0.25)
-            elif(e == "T"):
-                dn.append(0.5)
-            elif(e == "G"):
-                dn.append(0.75)
-            else:
                 dn.append(1)
+            elif(e == "T"):
+                dn.append(2)
+            elif(e == "G"):
+                dn.append(3)
+            else:
+                dn.append(4)
 
-        data.append(dn)
+        data.append([dn])
+
 
     # Procesado de las etiquetas
     for l in labels_raw:
@@ -56,7 +57,8 @@ def procesa_datos(csv):
 
     return labels, data
 
-def to_pytorch(labels, data, split_train=0.7, split_test=0.9, bs=16):
+
+def to_pytorch(labels, data, split_train=0.8, split_test=0.9, bs=128):
 
     tam = len(labels)
 

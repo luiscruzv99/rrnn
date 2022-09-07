@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 
 
-def entrenamiento(loader, red, optim, loss_fn=nn.MSELoss(reduction='mean')):
+def entrenamiento(loader, red, optim, sched, loss_fn=nn.MSELoss(reduction='mean')):
+
 
     for example, label in loader:
         optim.zero_grad()
@@ -10,6 +11,7 @@ def entrenamiento(loader, red, optim, loss_fn=nn.MSELoss(reduction='mean')):
         loss = loss_fn(output, label)
         loss.backward()
         optim.step()
+    sched.step()
 
 
 def val(loader, red, optim, loss_fn=nn.MSELoss(reduction='mean'), test=False):
