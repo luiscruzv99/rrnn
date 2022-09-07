@@ -111,13 +111,13 @@ def vis_datos(data, labels):
 
     plt.show()
 
-def carga_datos(bs=32,  vis_datos=False):
+def carga_datos(bs=32,  vis_data=False):
     # Leemos los datos
     csv = pd.read_csv("splice.data")
     # Procesamos los datos
     labels, data = d.procesa_datos(csv)
 
-    if vis_datos:
+    if vis_data:
         vis_datos(data, labels)
     # Esto lo transforma en un formato guay para pytorch
     train, val, test = d.to_pytorch(labels, data, bs=bs)
@@ -221,7 +221,7 @@ def dibuja_barra(accs, nombre):
 if __name__ == "__main__":
 
     print("Modelo Lineal")
-    train, val, test = carga_datos(bs=128, vis_datos=True)
+    train, val, test = carga_datos(bs=128, vis_data=True)
     modelo_lineal(train, val, test)
 
     print("Modelo Simple FC")
